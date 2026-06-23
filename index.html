@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Shopsy 🛒</title>
+<link rel="icon" type="image/jpeg" href="favicon.jpeg">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, doc, setDoc, getDoc, collection, query, where, orderBy, getDocs, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  const firebaseConfig = {
+    apiKey:"AIzaSyDq_kDy2v50ynF_GZoUQXmTul2pEr3sOKc",
+    authDomain:"shopsy-77e17.firebaseapp.com",
+    projectId:"shopsy-77e17",
+    storageBucket:"shopsy-77e17.firebasestorage.app",
+    messagingSenderId:"1090982501992",
+    appId:"1:1090982501992:web:ba8522b93e722a5975a5dd"
+  };
+  const app = initializeApp(firebaseConfig);
+  window._fb = { auth:getAuth(app), db:getFirestore(app), createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, sendEmailVerification, doc, setDoc, getDoc, collection, query, where, orderBy, getDocs, deleteDoc, serverTimestamp };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="authWall">
+  <div class="auth-card">
+    <div class="auth-logo"><span class="heart">💓</span><h1>Buy with Love</h1><p style="font-size:.78rem;color:var(--muted);margin-top:3px">✨ Fresh Finds, Best Prices</p></div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="login">Sign In</button>
+      <button class="auth-tab" data-tab="signup">Sign Up</button>
+    </div>
+    <div class="auth-form active" id="loginForm">
+      <div class="auth-err" id="loginErr"></div>
+      <div class="field"><label>Email</label><input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email"/></div>
+      <div class="field"><label>Password</label><input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password"/></div>
+      <button class="auth-btn" id="loginBtn">Sign In →</button>
+    </div>
+    <div class="auth-form" id="signupForm">
+      <div class="auth-err" id="signupErr"></div>
+      <div class="field"><label>Full Name</label><input type="text" id="signupName" placeholder="e.g. Priya Sharma"/></div>
+      <div class="field"><label>Email</label><input type="email" id="signupEmail" placeholder="you@example.com"/></div>
+      <div class="field"><label>Password</label><input type="password" id="signupPass" placeholder="min 6 characters"/></div>
+      <div class="field"><label>Phone</label><input type="tel" id="signupPhone" placeholder="9876543210"/></div>
+      <button class="auth-btn" id="signupBtn">Create Account →</button>
+    </div>
+  </div>
+</div>
+
+<!-- VERIFY BANNER -->
+<div class="verify-banner" id="verifyBanner">
+  <h3>📧 Please Verify Your Email First</h3>
+  <p>We sent a verification link to your inbox. Verify to start shopping!</p>
+  <button class="btn-resend" id="btnResend">Resend Email</button>
+</div>
+
+<!-- NAV -->
+<nav id="mainNav" style="display:none">
+  <div class="nav-top">
+    <div class="nav-logo" onclick="showPage('home')" style="cursor:pointer">Shopsy 🛒</div>
+    <div class="search-relative">
+      <div class="search-wrap">
+        <input type="text" id="searchInput" placeholder="Search products…" autocomplete="off"/>
+        <button class="btn-search" onclick="doSearch()">🔍</button>
+      </div>
+      <div class="search-suggestions" id="searchSuggestions"></div>
+    </div>
+    <div class="nav-right">
+      <button class="nav-btn nav-home" onclick="goHome()">🏠</button>
+      <button class="nav-btn nav-orders" id="btnMyOrders">📦 Orders</button>
+      <button class="nav-btn nav-logout" id="logoutBtn">Sign out</button>
+    </div>
+  </div>
+</nav>
+
+<!-- HOME PAGE -->
+<div class="page active" id="homePage">
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <div class="hero-pill">✨ Fresh Finds, Best Prices</div>
+      <h1>Shop with <em>Heart</em><br>&amp; Style</h1>
+      <p class="hero-sub">Curated picks you'll love at prices that smile back</p>
+      <button class="btn-hero" onclick="document.getElementById('productsSection').scrollIntoView({behavior:'smooth'})">
+        Shop Now →
+      </button>
+    </div>
+  </div>
+
+  <div class="products-section" id="productsSection">
+    <div class="sec-head">
+      <div><h2>Our Products 💝</h2><div class="bar"></div></div>
+    </div>
+    <div class="filter-tabs" id="filterTabs">
+        <button class="filter-tab active" data-cat="All" onclick="filterProducts('All',this)">All</button>
+        <button class="filter-tab" data-cat="Gaming" onclick="filterProducts('Gaming',this)">🎮 Gaming</button>
+        <button class="filter-tab" data-cat="Mobile" onclick="filterProducts('Mobile',this)">📱 Mobile</button>
+        <button class="filter-tab" data-cat="Audio" onclick="filterProducts('Audio',this)">🎧 Audio</button>
+        <button class="filter-tab" data-cat="Wearable" onclick="filterProducts('Wearable',this)">⌚ Wearable</button>
+        <button class="filter-tab" data-cat="Laptop" onclick="filterProducts('Laptop',this)">💻 Laptop</button>
+        <button class="filter-tab" data-cat="Component" onclick="filterProducts('Component',this)">📲 Component</button>
+        <button class="filter-tab" data-cat="Electronic" onclick="filterProducts('Electronic',this)">📺 Electronic</button>
+        <button class="filter-tab" data-cat="Accessories" onclick="filterProducts('Accessories',this)">🔌 Accessories</button>
+      </div>
+    <div class="p-grid" id="productGrid"></div>
+  </div>
+
+  <div class="trust">
+    <div class="trust-item"><span class="ic">🚚</span><h4>Fast Delivery</h4><p>2-4 working days</p></div>
+    <div class="trust-item"><span class="ic">🔒</span><h4>100% Secure</h4><p>Firebase verified</p></div>
+    <div class="trust-item"><span class="ic">💯</span><h4>Quality Assured</h4><p>Every item checked</p></div>
+    <div class="trust-item"><span class="ic">↩️</span><h4>Easy Returns</h4><p>7-day return policy</p></div>
+  </div>
+  <footer id="contact"><p>© 2025 <strong style="color:var(--rose)">Shopsy 💓</strong></p><p style="margin-top:6px">Questions? <a href="mailto:sumitmethewad@gmail.com">sumitmethewad@gmail.com</a></p></footer>
+</div>
+
+<!-- PRODUCT DETAIL PAGE -->
+<div class="page" id="productPage">
+  <div class="product-detail" id="productDetail"></div>
+  <div class="reviews-section" id="reviewsSection"></div>
+  <div class="related-section" id="relatedSection"></div>
+
+</div>
+
+<!-- MY ORDERS PAGE -->
+<div class="page" id="ordersPage">
+  <div class="orders-page-layout">
+    <!-- LEFT: My Orders -->
+    <div class="orders-left">
+      <div class="orders-head"><h2>My Orders 📦</h2><div class="bar"></div></div>
+      <div id="ordersList"></div>
+    </div>
+    <!-- RIGHT: Return / Exchange -->
+    <div class="orders-right">
+    <!-- RETURN / EXCHANGE SECTION -->
+    <div class="return-section">
+      <div class="return-top-info">
+        <h3>↩️ Return / Exchange</h3>
+        <p>Not satisfied? Request a return or exchange within 7 days of delivery.</p>
+      </div>
+      <div class="return-cards">
+        <div class="return-card">
+          <span class="return-icon">📦</span>
+          <h4>Easy Return</h4>
+          <p>Return within 7 days. No questions asked.</p>
+        </div>
+        <div class="return-card">
+          <span class="return-icon">🔄</span>
+          <h4>Free Exchange</h4>
+          <p>Wrong item? Exchange for free within 7 days.</p>
+        </div>
+        <div class="return-card">
+          <span class="return-icon">💰</span>
+          <h4>Full Refund</h4>
+          <p>100% refund to your original payment method.</p>
+        </div>
+      </div>
+
+      <div class="return-form-box">
+        <h4>🙋 Submit Return / Exchange Request</h4>
+        <div class="ret-hint">
+        </div>
+        <div class="return-form-grid">
+          <div class="fg"><label>Your Name *</label><input type="text" id="retName" placeholder="e.g. Rahul Sharma"/></div>
+          <div class="fg"><label>Phone *</label><input type="tel" id="retPhone" placeholder="9876543210"/></div>
+          <div class="fg">
+            <label>Order ID *</label>
+            <select id="retOrderId">
+              <option value="">-- Select your order --</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label>Request Type</label>
+            <select id="retType">
+              <option>Return &amp; Refund</option>
+              <option>Exchange Product</option>
+              <option>Damaged Product</option>
+              <option>Wrong Product Received</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg"><label>Reason *</label><textarea id="retReason" placeholder="Please describe the issue with your order…"></textarea></div>
+        <button class="btn-return-submit" id="btnReturnSubmit">Submit Request 📨</button>
+      </div>
+    </div>
+    </div><!-- orders-right -->
+  </div><!-- orders-page-layout -->
+</div>
+
+<!-- FABs -->
+<div class="fabs" id="fabs" style="display:none">
+  <a class="fab-wa" href="https://wa.me/918956458529" target="_blank">
+    <svg viewBox="0 0 32 32"><path d="M16.002 2C8.271 2 2 8.27 2 16c0 2.47.648 4.787 1.775 6.797L2 30l7.406-1.742A13.94 13.94 0 0 0 16.002 30C23.73 30 30 23.73 30 16S23.73 2 16.002 2Zm0 25.455a11.418 11.418 0 0 1-5.822-1.593l-.418-.248-4.33 1.018 1.038-4.214-.27-.434A11.418 11.418 0 0 1 4.543 16c0-6.318 5.141-11.455 11.46-11.455S27.457 9.682 27.457 16s-5.136 11.455-11.455 11.455Zm6.27-8.574c-.344-.172-2.035-1.004-2.35-1.118-.314-.114-.543-.172-.773.172-.229.344-.886 1.118-1.086 1.348-.2.229-.4.258-.744.086-.343-.172-1.449-.535-2.76-1.703-1.02-.91-1.709-2.033-1.909-2.377-.2-.343-.021-.53.15-.701.154-.154.343-.401.515-.602.17-.2.228-.343.342-.572.114-.229.057-.43-.029-.601-.086-.172-.773-1.862-1.058-2.549-.279-.671-.562-.58-.773-.591l-.657-.013c-.229 0-.601.086-.916.43-.314.344-1.2 1.176-1.2 2.863 0 1.686 1.229 3.316 1.4 3.545.172.229 2.418 3.692 5.857 5.177.82.353 1.459.564 1.958.722.823.261 1.572.224 2.163.136.66-.099 2.035-.832 2.32-1.635.286-.803.286-1.49.2-1.635-.085-.143-.314-.229-.657-.401Z"/></svg>
+  </a>
+  <button class="fab-cart" id="fabCart">
+    <svg viewBox="0 0 24 24" fill="white"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4H6z"/></svg>
+    <span class="badge off" id="badge">0</span>
+  </button>
+</div>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay"></div>
+
+<!-- CART DRAWER -->
+<aside class="drawer" id="drawer">
+  <div class="dh"><h3>🛒 Cart</h3><button class="dclose" id="dclose">×</button></div>
+  <div class="dbody" id="dbody">
+    <div class="empty-cart" id="emptyCart"><span class="ei">🛍️</span><p style="font-weight:600">Your cart is empty</p><p style="font-size:.8rem;color:var(--muted);margin-top:4px">Add something you'll love!</p></div>
+    <div id="cartList"></div>
+  </div>
+  <div class="dtotal" id="dtotal" style="display:none"><span>Total</span><span id="totalAmt">₹0</span></div>
+  <div class="dfooter"><button class="btn-order" id="btnOrder" disabled>💌 Place Order</button></div>
+</aside>
+
+<!-- ORDER MODAL -->
+<div class="mod-wrap" id="modWrap">
+  <div class="mod">
+    <h3>💓 Complete Order</h3>
+    <p class="msub">Fill your details — we'll confirm shortly.</p>
+    <div class="summary-box"><h4>📋 Order Summary</h4><ul id="sumList"></ul><div class="stotal" id="sumTotal"></div></div>
+    <div class="fg"><label>Full Name *</label><input type="text" id="oName" placeholder="e.g. Rahul Sharma"/></div>
+    <div class="fg"><label>Phone *</label><input type="tel" id="oPhone" placeholder="9876543210"/></div>
+    <div class="fg"><label>Delivery Address</label><textarea id="oAddress" placeholder="Street, City, PIN Code…"></textarea></div>
+    <div class="fg"><label>Note</label><input type="text" id="oNote" placeholder="Any special request?"/></div>
+    <div class="mod-acts">
+      <button class="btn-cancel" id="modCancel">Cancel</button>
+      <button class="btn-send" id="btnSend">Next →</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAY MODAL -->
+<div class="pay-wrap" id="payWrap">
+  <div class="pay-mod">
+    <h3>💳 Payment</h3>
+    <p class="psub">Choose how you want to pay</p>
+    <div class="pay-amount-box"><div class="plabel">Total Amount</div><div class="pamount" id="payAmount">₹0</div></div>
+    <div class="pay-option" id="codOpt"><div class="pay-option-icon">🚚</div><div><div class="pay-option-title">Cash on Delivery</div><div class="pay-option-sub">Pay when your order arrives</div></div><div class="pay-option-check" id="codCheck"></div></div>
+    <div class="pay-option" id="onlineOpt"><div class="pay-option-icon">📱</div><div><div class="pay-option-title">Pay Online</div><div class="pay-option-sub">UPI · Cards · NetBanking</div></div><div class="pay-option-check" id="onlineCheck"></div></div>
+    <button class="btn-pay" id="btnPay">Confirm →</button>
+    <div class="pay-secure">🔒 Secure payment · Buy with Love 💓</div>
+    <button class="btn-pay-back" id="btnPayBack">← Back</button>
+  </div>
+</div>
+
+<!-- CANCEL MODAL -->
+<div class="cancel-wrap" id="cancelWrap">
+  <div class="cancel-mod">
+    <span class="icon">🗑️</span>
+    <h3>Cancel Order?</h3>
+    <p>Are you sure? This cannot be undone.</p>
+    <div class="cancel-acts">
+      <button class="btn-keep" id="btnKeep">Keep it</button>
+      <button class="btn-confirm-cancel" id="btnConfirmCancel">Yes, Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- SUCCESS -->
+<div class="success-overlay" id="successOverlay">
+  <div class="success-circle">✅</div>
+  <h2>Order Placed! 🎉</h2>
+  <p id="successMsg">Confirmation sent to your email!</p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
